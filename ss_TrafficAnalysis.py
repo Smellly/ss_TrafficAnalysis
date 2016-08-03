@@ -9,6 +9,7 @@ sys.setdefaultencoding('utf-8')
 import time, sys,iptc  # iptc 包通过 sudo pip install python-iptables 安装
 from datetime import datetime
 import csv
+# from __future__ import print_function
 
 DEBUG = True
 
@@ -87,8 +88,8 @@ def get_original_flow():
                 res['flow_out'][sport] = rule.get_counters()[1]
         except Exception,inst:
             if DEBUG:
-            	print (u'[警告]未知的 iptables 规则，如果是其他软件添加的可以忽略。')
-            	print(inst)
+            	print '[警告]未知的 iptables 规则，如果是其他软件添加的可以忽略。'
+            	print inst
     for rule in chain_in.rules:
         try:
             if len(rule.matches)==1:
@@ -96,8 +97,8 @@ def get_original_flow():
                 res['flow_in'][dport] = rule.get_counters()[1]
         except Exception,inst:
             if DEBUG:
-				print (u'[警告]未知的 iptables 规则，如果是其他软件添加的可以忽略。')
-				print(inst)
+                print u'[警告]未知的 iptables 规则，如果是其他软件添加的可以忽略。'.encode('utf-8')
+				print inst
     return res
 
 def get_last_flow():
@@ -178,7 +179,7 @@ def run():
     
     for account_name , account in  account_dict.iteritems():
     	if DEBUG:
-        	print u'开始处理账号 %s 端口 %s' %(account_name,account['server_port'])
+        	print '开始处理账号 %s 端口 %s'.encode('utf-8') %(account_name,account['server_port'])
     
         # 本次统计新增流量
         in_flow = 0
@@ -188,7 +189,7 @@ def run():
         original_flow_out = original_flow_dict['flow_out'].get(account['server_port'],None)
         if original_flow_in == None or original_flow_out == None:
             if DEBUG:
-                print u'用户 %s 端口 %s 未配置 iptables 统计流量信息，开始配置 iptables 。' \
+                print '用户 %s 端口 %s 未配置 iptables 统计流量信息，开始配置 iptables 。' \
                 % (account_name,account['server_port'])
             add_iptables(account['server_port'])
             #TODO: 无流量信息处理。
@@ -204,12 +205,12 @@ def run():
         else:
             if DEBUG:
                 print \
-                u'''[错误][流量统计] 账号 %s 端口 %s 统计流量错误，
+                '''[错误][流量统计] 账号 %s 端口 %s 统计流量错误，
                 可能最近重启服务器过造成 iptables 流量记录重置了，已经纠正了错误。'''\
                 % (account_name,account['server_port'])
         if DEBUG:
             print \
-            u'''用户 %s 端口 %s 上次统计，入站流量:%s 出站流量:%s 
+            '''用户 %s 端口 %s 上次统计，入站流量:%s 出站流量:%s 
             本次统计入站流量:%s 出站流量:%s 本次新增入站流量:%s 出站流量:%s ''' \
             %(account_name,account['server_port'],flow['in'],flow['out'],\
             original_flow_in,original_flow_out,in_flow,out_flow)
@@ -234,7 +235,7 @@ def run():
                 pass
             else:
             	if DEBUG:
-                	print u'账号 %s 端口 %s 当月已用流量 %s ，超出限制，停用账号。' \
+                	print '账号 %s 端口 %s 当月已用流量 %s ，超出限制，停用账号。' \
                 	%(account_name,account['server_port'],month_flow[0])
                 os.system('service ss-libev stop %s' % account_name)
         
@@ -271,12 +272,12 @@ def run():
                 pass
             else:
             	if DEBUG:
-                	print u'账号 %s 端口 %s 最近十分钟已用流量 %s ，超出限制，停用账号。' \
+                	print '账号 %s 端口 %s 最近十分钟已用流量 %s ，超出限制，停用账号。' \
                 	%(account_name,account['server_port'],tenminutes_flow[0])
                 os.system('service ss-libev stop %s'%account_name)
         if DEBUG:
         	print \
-        	u'用户 %s 端口 %s ，本月流量:%s 本天流量:%s 本小时流量:%s 十分钟流量:%s' \
+        	'用户 %s 端口 %s ，本月流量:%s 本天流量:%s 本小时流量:%s 十分钟流量:%s' \
         	% (account_name,account['server_port'],month_flow[0],day_flow[0],\
         		hour_flow[0],tenminutes_flow[0])
                 
@@ -288,7 +289,7 @@ def run():
     set_old_flow(tenminutes_flow_dict,'tenminutes_flow',now)
         
     if DEBUG:
-    	print u'流量统计完毕，统计信息已保存到 %s 目录' % MY_LOG_DIR
+    	print '流量统计完毕，统计信息已保存到 %s 目录' % MY_LOG_DIR
         
 if __name__ == '__main__':    
     run()
