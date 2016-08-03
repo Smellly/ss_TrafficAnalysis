@@ -35,8 +35,8 @@ LAST_FLOW_FILE = MY_CONF_DIR + 'last_flow.json'
 # 不受限制账号列表
 NO_LIMIT = ['config4me.json']
 # 流量  1*1024*1024*1024 =1G
-LIMIT_FLOW =  10 * 1024 * 1024 *1024
-LIMIT_FLOW_TENMINUTES = 10 * 1024 * 1024 *1024
+LIMIT_FLOW =  100 * 1024 * 1024 *1024 # 100 G
+LIMIT_FLOW_TENMINUTES = 10 * 1024 * 1024 *1024 # 10 G
 # 时区：上海
 os.environ["TZ"] = "Asia/Shanghai"
  
@@ -83,22 +83,24 @@ def get_original_flow():
 
     for rule in chain_out.rules:
         try:
-            if len(rule.matches)==1:
+            if len(rule.matches) == 1:
                 sport = int(rule.matches[0].sport)
                 res['flow_out'][sport] = rule.get_counters()[1]
         except Exception,inst:
             if DEBUG:
-            	print '[警告]未知的 iptables 规则，如果是其他软件添加的可以忽略。'
+            	print '[警告]未知的 iptables chain_out 规则，如果是其他软件添加的可以忽略。'
+                # print rule.protocol
             	print inst
     for rule in chain_in.rules:
         try:
-            if len(rule.matches)==1:
+            if len(rule.matches) == 1:
                 dport = int(rule.matches[0].dport)
                 res['flow_in'][dport] = rule.get_counters()[1]
         except Exception,inst:
             if DEBUG:
-                print u'[警告]未知的 iptables 规则，如果是其他软件添加的可以忽略。'.encode('utf-8')
-				print inst
+                print u'[警告]未知的 iptables chain_in 规则，如果是其他软件添加的可以忽略。'.encode('utf-8')
+                # print rule.protocol
+                print inst
     return res
 
 def get_last_flow():
@@ -163,6 +165,24 @@ def set_old_flow(flow_dict,_type,_time):
                 writer.writerow((username,flow[0],flow[1],flow[2]))
     return True
     
+# traffic unit transform funciton
+def ut(original):
+    if original < 1024:
+	unit = ' Bytes'
+    elif 1024 < original < 1024*1024:
+        unit = ' KB'
+        original = float(original) / 1024.0
+    elif 1024*1024 < original < 1024*1024*1024:
+        unit = ' MB'
+        original = float(original) / ( 1024*1024 )
+    elif 1024*1024*1024 < original < 1024*1024*1024*1024:
+        unit = ' GB'
+        original = float(original) / ( 1024*1024*1024 )
+    elif 1024*1024*1024*1024 < original < 1024*1024*1024*1024*1024:
+        unit = ' TB'
+        original = float(original) / ( 1024*1024*1024*1024 )
+    return str(float('%.4f'%original)) + unit
+
 def run():
     u""" 获得流量信息
 	每隔一段时间执行一次
@@ -179,11 +199,12 @@ def run():
     
     for account_name , account in  account_dict.iteritems():
     	if DEBUG:
+                print
         	print '开始处理账号 %s 端口 %s'.encode('utf-8') %(account_name,account['server_port'])
     
         # 本次统计新增流量
-        in_flow = 0
-        out_flow =0
+        in_flow  = 0
+        out_flow = 0
 
         original_flow_in = original_flow_dict['flow_in'].get(account['server_port'],None)
         original_flow_out = original_flow_dict['flow_out'].get(account['server_port'],None)
@@ -211,9 +232,9 @@ def run():
         if DEBUG:
             print \
             '''用户 %s 端口 %s 上次统计，入站流量:%s 出站流量:%s 
-            本次统计入站流量:%s 出站流量:%s 本次新增入站流量:%s 出站流量:%s ''' \
-            %(account_name,account['server_port'],flow['in'],flow['out'],\
-            original_flow_in,original_flow_out,in_flow,out_flow)
+本次统计入站流量:%s 出站流量:%s 本次新增入站流量:%s 出站流量:%s ''' \
+            %(account_name,account['server_port'],ut(flow['in']),ut(flow['out']),\
+            ut(original_flow_in), ut(original_flow_out), ut(in_flow), ut(out_flow))
 
         # 设置新的原始流量
         flow['in'] = original_flow_in
@@ -236,7 +257,7 @@ def run():
             else:
             	if DEBUG:
                 	print '账号 %s 端口 %s 当月已用流量 %s ，超出限制，停用账号。' \
-                	%(account_name,account['server_port'],month_flow[0])
+                	%(account_name,account['server_port'], ut(month_flow[0]))
                 os.system('service ss-libev stop %s' % account_name)
         
         
@@ -273,13 +294,17 @@ def run():
             else:
             	if DEBUG:
                 	print '账号 %s 端口 %s 最近十分钟已用流量 %s ，超出限制，停用账号。' \
-                	%(account_name,account['server_port'],tenminutes_flow[0])
+                	%(account_name,account['server_port'], ut(tenminutes_flow[0]))
                 os.system('service ss-libev stop %s'%account_name)
         if DEBUG:
         	print \
-        	'用户 %s 端口 %s ，本月流量:%s 本天流量:%s 本小时流量:%s 十分钟流量:%s' \
-        	% (account_name,account['server_port'],month_flow[0],day_flow[0],\
-        		hour_flow[0],tenminutes_flow[0])
+        	'''用户 %s 端口 %s ，
+本月流量:%s 
+本天流量:%s 
+本小时流量:%s 
+十分钟流量:%s''' \
+        	% (account_name,account['server_port'], ut(month_flow[0]), ut(day_flow[0]),\
+        		ut(hour_flow[0]), ut(tenminutes_flow[0]))
                 
         
     set_last_flow(last_flow_dict)
